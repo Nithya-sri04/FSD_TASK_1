@@ -3,6 +3,7 @@ import axios from 'axios';
 import './EmployeeForm.css';
 
 const EmployeeForm = () => {
+  // Initializing form data, error states, and messages
   const [formData, setFormData] = useState({
     employee_id: '',
     emp_name: '',
@@ -17,14 +18,14 @@ const EmployeeForm = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
+  // List of available departments
   const departments = ['HR', 'Engineering', 'Marketing'];
 
-  // Validate form fields
-  const validateForm = () => {
+  // Validate function for form inputs
+  const validate = () => {
     const newErrors = {};
-
-    if (!formData.employee_id) newErrors.employee_id = 'Employee ID is required.';
-    if (!formData.emp_name) newErrors.emp_name = 'Name is required.';
+    if (!formData.employee_id) newErrors.employee_id = 'Employee ID is required';
+    if (!formData.emp_name) newErrors.emp_name = 'Employee name is required';
     if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
       newErrors.email = 'Valid email is required.';
     if (!formData.phone_number || !/^\d{10}$/.test(formData.phone_number))
@@ -32,28 +33,27 @@ const EmployeeForm = () => {
     if (!formData.department) newErrors.department = 'Department is required.';
     if (!formData.date_of_joining || new Date(formData.date_of_joining) > new Date())
       newErrors.date_of_joining = 'Date of joining cannot be in the future.';
-    if (!formData.role) newErrors.role = 'Role is required.';
+    if (!formData.role) newErrors.role = 'Employee role is required';
 
     setErrors(newErrors);
-
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle input changes
+  // Handle form input change
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-    setErrors({ ...errors, [name]: '' }); // Clear errors on change
+    setErrorMessage(''); // Reset error message when the user changes input
   };
 
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) return;
+    if (!validate()) return; // Stop form submission if validation fails
 
     try {
-      const response = await axios.post('http://localhost:3000/api/add', formData);
-      setSuccessMessage(response.data.message);
+      const response = await axios.post('http://localhost:5000/api/add', formData);
+      setSuccessMessage(response.data.message || 'Employee added successfully!');
       setErrorMessage('');
       setFormData({
         employee_id: '',
@@ -90,6 +90,7 @@ const EmployeeForm = () => {
     <div className="employee-form-container">
       <h1>Add New Employee</h1>
       <form onSubmit={handleSubmit}>
+        {/* Employee ID Field */}
         <div className="form-group">
           <label htmlFor="employee_id">Employee ID:</label>
           <input
@@ -102,8 +103,9 @@ const EmployeeForm = () => {
           {errors.employee_id && <p className="error">{errors.employee_id}</p>}
         </div>
 
+        {/* Employee Name Field */}
         <div className="form-group">
-          <label htmlFor="emp_name">Name:</label>
+          <label htmlFor="emp_name">Employee Name:</label>
           <input
             type="text"
             id="emp_name"
@@ -114,18 +116,7 @@ const EmployeeForm = () => {
           {errors.emp_name && <p className="error">{errors.emp_name}</p>}
         </div>
 
-        <div className="form-group">
-          <label htmlFor="email">Email:</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-          />
-          {errors.email && <p className="error">{errors.email}</p>}
-        </div>
-
+        {/* Phone Number Field */}
         <div className="form-group">
           <label htmlFor="phone_number">Phone Number:</label>
           <input
@@ -138,6 +129,20 @@ const EmployeeForm = () => {
           {errors.phone_number && <p className="error">{errors.phone_number}</p>}
         </div>
 
+        {/* Email Field */}
+        <div className="form-group">
+          <label htmlFor="email">Email:</label>
+          <input
+            type="text"
+            id="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+          />
+          {errors.email && <p className="error">{errors.email}</p>}
+        </div>
+
+        {/* Department Field */}
         <div className="form-group">
           <label htmlFor="department">Department:</label>
           <select
@@ -156,6 +161,7 @@ const EmployeeForm = () => {
           {errors.department && <p className="error">{errors.department}</p>}
         </div>
 
+        {/* Date of Joining Field */}
         <div className="form-group">
           <label htmlFor="date_of_joining">Date of Joining:</label>
           <input
@@ -168,6 +174,7 @@ const EmployeeForm = () => {
           {errors.date_of_joining && <p className="error">{errors.date_of_joining}</p>}
         </div>
 
+        {/* Role Field */}
         <div className="form-group">
           <label htmlFor="role">Role:</label>
           <input
@@ -180,12 +187,12 @@ const EmployeeForm = () => {
           {errors.role && <p className="error">{errors.role}</p>}
         </div>
 
+        {/* Submit and Reset Buttons */}
         <button type="submit">Add Employee</button>
-        <button type="button" onClick={handleReset}>
-          Reset
-        </button>
+        <button type="button" onClick={handleReset}>Reset</button>
       </form>
 
+      {/* Success and Error Messages */}
       {successMessage && <p className="success">{successMessage}</p>}
       {errorMessage && <p className="error">{errorMessage}</p>}
     </div>
@@ -193,4 +200,5 @@ const EmployeeForm = () => {
 };
 
 export default EmployeeForm;
+
 

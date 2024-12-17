@@ -5,7 +5,7 @@ const cors = require('cors');
 
 
 const app = express();
-const PORT = 3000;
+const PORT = 5000;
 
 // Middleware for parsing JSON
 app.use(bodyParser.json());
@@ -71,7 +71,10 @@ const validateEmployee = (data) => {
   // Date of Joining
   const now = new Date();
   const joiningDate = new Date(data.date_of_joining);
-  if (!data.date_of_joining || joiningDate > now) {
+  if(!data.date_of_joining){
+    errors.date_of_joining = 'Date of joining is required.';
+  }
+  if (joiningDate > now) {
     errors.date_of_joining = 'Date of joining cannot be in the future.';
   }
 
@@ -93,31 +96,67 @@ app.post('/api/add', (req, res) => {
     return res.status(400).json({ message: 'Validation errors occurred.', errors });
   }
 
-  // Insert employee into the database
-  const sql = `
-    INSERT INTO employees (employee_id, emp_name, email, phone_number, department, date_of_joining, role)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+  // Check if employee_id, email, or phone_number already exists
+  const checkQuery = `
+    SELECT * FROM employees WHERE employee_id = ? OR email = ? OR phone_number = ?
   `;
-
-  const values = [
-    employee.employee_id,
-    employee.emp_name,
-    employee.email,
-    employee.phone_number,
-    employee.department,
-    employee.date_of_joining,
-    employee.role,
-  ];
-
-  db.query(sql, values, (err, result) => {
+  db.query(checkQuery, [employee.employee_id, employee.email, employee.phone_number], (err, results) => {
     if (err) {
-      console.error('Error inserting employee:', err.message);
-      return res.status(500).json({ message: 'Database error occurred.' });
+      console.error('Error checking for duplicates:', err.message);
+      return res.status(500).json({ message: 'Database error occured' });
     }
 
-    res.status(200).json({ message: 'Employee added successfully!' });
+    if (results.length > 0) {
+      // Handle duplicate entry error
+      const duplicateErrors = {};
+      
+      // Check for duplicate employee_id
+      if (results.some(row => row.employee_id === employee.employee_id)) {
+        duplicateErrors.employee_id = 'Employee ID already exists.';
+      }
+
+      // Check for duplicate email
+      if (results.some(row => row.email === employee.email)) {
+        duplicateErrors.email = 'Email already exists.';
+      }
+
+      // Check for duplicate phone number
+      if (results.some(row => row.phone_number === employee.phone_number)) {
+        duplicateErrors.phone_number = 'Phone number already exists.';
+      }
+
+      if (Object.keys(duplicateErrors).length > 0) {
+        return res.status(400).json({ message: 'Duplicate values found.', errors: duplicateErrors });
+      }
+    }
+
+    // Insert employee into the database if no duplicates are found
+    const sql = `
+      INSERT INTO employees (employee_id, emp_name, email, phone_number, department, date_of_joining, role)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+  
+    const values = [
+      employee.employee_id,
+      employee.emp_name,
+      employee.email,
+      employee.phone_number,
+      employee.department,
+      employee.date_of_joining,
+      employee.role,
+    ];
+
+    db.query(sql, values, (err, result) => {
+      if (err) {
+        console.error('Error inserting employee:', err.message);
+        return res.status(500).json({ message: 'Database error occurred.' });
+      }
+
+      res.status(200).json({ message: 'Employee added successfully!' });
+    });
   });
 });
+
 
 // Start the server
 app.listen(PORT, () => {
