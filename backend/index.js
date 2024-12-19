@@ -2,7 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const mysql = require('mysql2');
 const cors = require('cors');
-
+require('dotenv').config();
 
 const app = express();
 const PORT = 5000;
@@ -10,24 +10,14 @@ const PORT = 5000;
 // Middleware for parsing JSON
 app.use(bodyParser.json());
 app.use(cors());
-require('dotenv').config();
 
-
-
-// MySQL Database Connection
-const db = mysql.createConnection({
+// MySQL Database Connection Pool
+const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME
-});
-
-db.connect((err) => {
-  if (err) {
-    console.error('Error connecting to the database:', err.message);
-    return;
-  }
-  console.log('Connected to the MySQL database.');
+  database: process.env.DB_NAME,
+  connectionLimit: 10 // Max number of concurrent connections
 });
 
 // Custom validation function
@@ -71,10 +61,7 @@ const validateEmployee = (data) => {
   // Date of Joining
   const now = new Date();
   const joiningDate = new Date(data.date_of_joining);
-  if(!data.date_of_joining){
-    errors.date_of_joining = 'Date of joining is required.';
-  }
-  if (joiningDate > now) {
+  if (!data.date_of_joining || joiningDate > now) {
     errors.date_of_joining = 'Date of joining cannot be in the future.';
   }
 
@@ -96,67 +83,35 @@ app.post('/api/add', (req, res) => {
     return res.status(400).json({ message: 'Validation errors occurred.', errors });
   }
 
-  // Check if employee_id, email, or phone_number already exists
-  const checkQuery = `
-    SELECT * FROM employees WHERE employee_id = ? OR email = ? OR phone_number = ?
-  `;
-  db.query(checkQuery, [employee.employee_id, employee.email, employee.phone_number], (err, results) => {
+  // Insert employee into the database
+  const sql = `INSERT INTO Employee (employee_id, emp_name, email, phone_number, department, date_of_joining, role)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`;
+
+  const values = [
+    employee.employee_id,
+    employee.emp_name,
+    employee.email,
+    employee.phone_number,
+    employee.department,
+    employee.date_of_joining,
+    employee.role,
+  ];
+
+  db.query(sql, values, (err, result) => {
     if (err) {
-      console.error('Error checking for duplicates:', err.message);
-      return res.status(500).json({ message: 'Database error occured' });
+      console.error('Error inserting employee:', err.message);
+      return res.status(500).json({ message: 'Database error occurred.' });
     }
 
-    if (results.length > 0) {
-      // Handle duplicate entry error
-      const duplicateErrors = {};
-      
-      // Check for duplicate employee_id
-      if (results.some(row => row.employee_id === employee.employee_id)) {
-        duplicateErrors.employee_id = 'Employee ID already exists.';
-      }
-
-      // Check for duplicate email
-      if (results.some(row => row.email === employee.email)) {
-        duplicateErrors.email = 'Email already exists.';
-      }
-
-      // Check for duplicate phone number
-      if (results.some(row => row.phone_number === employee.phone_number)) {
-        duplicateErrors.phone_number = 'Phone number already exists.';
-      }
-
-      if (Object.keys(duplicateErrors).length > 0) {
-        return res.status(400).json({ message: 'Duplicate values found.', errors: duplicateErrors });
-      }
-    }
-
-    // Insert employee into the database if no duplicates are found
-    const sql = `
-      INSERT INTO employees (employee_id, emp_name, email, phone_number, department, date_of_joining, role)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `;
-  
-    const values = [
-      employee.employee_id,
-      employee.emp_name,
-      employee.email,
-      employee.phone_number,
-      employee.department,
-      employee.date_of_joining,
-      employee.role,
-    ];
-
-    db.query(sql, values, (err, result) => {
-      if (err) {
-        console.error('Error inserting employee:', err.message);
-        return res.status(500).json({ message: 'Database error occurred.' });
-      }
-
-      res.status(200).json({ message: 'Employee added successfully!' });
-    });
+    res.status(200).json({ message: 'Employee added successfully!' });
   });
 });
 
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err.message);
+  res.status(500).json({ message: 'Internal server error.' });
+});
 
 // Start the server
 app.listen(PORT, () => {
