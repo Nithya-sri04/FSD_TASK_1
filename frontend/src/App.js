@@ -52,7 +52,7 @@ const EmployeeForm = () => {
     if (!validate()) return; // Stop form submission if validation fails
 
     try {
-      await axios.post('https://emp-mgmt-okbt.onrender.com/api/add', formData);
+      await axios.post('https://fsd-task-1-2.onrender.com/api/add', formData);
       setSuccessMessage(response.data.message || 'Employee added successfully!');
       setErrorMessage('');
       setFormData({
